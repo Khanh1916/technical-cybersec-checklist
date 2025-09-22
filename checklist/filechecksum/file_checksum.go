@@ -16,7 +16,7 @@ func Checksums(files []string) string {
 		if err != nil {
 			continue
 		} else {
-			result += fmt.Sprintf(`"%s": "%s\n"`, file, checksum)
+			result += fmt.Sprintf(`"%s": %s\n`, file, checksum)
 		}
 	}
 	return result

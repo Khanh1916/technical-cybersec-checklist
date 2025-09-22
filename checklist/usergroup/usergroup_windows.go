@@ -1,7 +1,6 @@
 package usergroup
 
 import (
-	"bytes"
 	"fmt"
 	"os/exec"
 	"slices"
@@ -11,90 +10,133 @@ import (
 func GetUsersAndGroups() (string, error) {
 	groups, err := getLocalGroups()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get local groups: %v", err)
+	}
+
+	if len(groups) == 0 {
+		return "", fmt.Errorf("no groups found")
 	}
 
 	userGroups := make(map[string][]string)
 
+	// Iterate through each group and get its members
 	for _, group := range groups {
 		members, err := getGroupMembers(group)
 		if err != nil {
-			continue // skip group if error (e.g. no members)
+			continue // Skip groups that can't be read
 		}
+
+		// Add each member to the userGroups map
 		for _, user := range members {
-			userGroups[user] = append(userGroups[user], group)
+			// Clean up the username
+			user = strings.TrimSpace(user)
+			if user != "" {
+				userGroups[user] = append(userGroups[user], group)
+			}
 		}
 	}
 
-	var result string
+	if len(userGroups) == 0 {
+		return "", fmt.Errorf("no users found in any groups")
+	}
+
+	// Build the result string
+	var result strings.Builder
 	users := make([]string, 0, len(userGroups))
 	for user := range userGroups {
 		users = append(users, user)
 	}
 	slices.Sort(users)
+
 	for _, user := range users {
 		groups := userGroups[user]
 		slices.Sort(groups)
-		result += fmt.Sprintf(`"%s": %s\n`, user, strings.Join(groups, ", "))
+		result.WriteString(fmt.Sprintf(`"%s": %s`+"\n", user, strings.Join(groups, ", ")))
 	}
 
-	return result, nil
+	return result.String(), nil
 }
 
 // get all local groups
 func getLocalGroups() ([]string, error) {
-	cmd := exec.Command("powershell", "-Command", "net", "localgroup")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
+	cmd := exec.Command("net", "localgroup")
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to run net localgroup: %v", err)
 	}
 
+	lines := strings.Split(string(output), "\n")
 	var groups []string
-	lines := strings.Split(out.String(), "\n")
-	started := false
+	inGroupSection := false
+
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.Contains(line, "-------") {
-			started = true
+		trimmed := strings.TrimSpace(line)
+
+		// Look for the separator line that indicates start of groups list
+		if strings.Contains(trimmed, "----") || strings.Contains(trimmed, "====") {
+			inGroupSection = true
 			continue
 		}
-		if started {
-			if line == "" || strings.HasPrefix(line, "The command completed") {
+
+		if inGroupSection {
+			// Stop when we hit completion message
+			if strings.Contains(trimmed, "The command completed") ||
+				strings.Contains(trimmed, "successfully") {
 				break
 			}
-			groups = append(groups, line)
+
+			// Skip empty lines and header lines
+			if trimmed != "" &&
+				!strings.Contains(trimmed, "Group Accounts") &&
+				!strings.Contains(trimmed, "Aliases") &&
+				trimmed != "*" {
+				// Remove the leading * from group names
+				groupName := strings.TrimPrefix(trimmed, "*")
+				groups = append(groups, groupName)
+			}
 		}
 	}
+
 	return groups, nil
 }
 
-// get members of a group
-func getGroupMembers(group string) ([]string, error) {
-	cmd := exec.Command("net", "localgroup", group)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
+// get members of a specific group
+func getGroupMembers(groupName string) ([]string, error) {
+	cmd := exec.Command("net", "localgroup", groupName)
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get members of group %s: %v", groupName, err)
 	}
 
-	var users []string
-	lines := strings.Split(out.String(), "\n")
-	started := false
+	lines := strings.Split(string(output), "\n")
+	var members []string
+	inMemberSection := false
+
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.Contains(line, "-------") {
-			started = true
+		trimmed := strings.TrimSpace(line)
+
+		// Look for the separator line that indicates start of members list
+		if strings.Contains(trimmed, "----") || strings.Contains(trimmed, "====") {
+			inMemberSection = true
 			continue
 		}
-		if started {
-			if line == "" || strings.HasPrefix(line, "The command completed") {
+
+		if inMemberSection {
+			// Stop when we hit completion message
+			if strings.Contains(trimmed, "The command completed") ||
+				strings.Contains(trimmed, "successfully") {
 				break
 			}
-			users = append(users, line)
+
+			// Skip empty lines and header lines
+			if trimmed != "" &&
+				!strings.Contains(trimmed, "Members") &&
+				!strings.Contains(trimmed, "Alias name") &&
+				trimmed != "*" {
+				members = append(members, trimmed)
+			}
 		}
 	}
-	return users, nil
+
+	return members, nil
 }

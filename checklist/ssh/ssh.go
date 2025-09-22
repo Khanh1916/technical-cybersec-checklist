@@ -36,7 +36,7 @@ func GetSSHKeys() (string, error) {
 		if !ok {
 			continue
 		}
-		result += fmt.Sprintf(`"%s":\n %s\n\n`, user, strings.Join(sshKeys, "\n"))
+		result += fmt.Sprintf(`"%s":\n%s\n\n`, user, strings.Join(sshKeys, "\n"))
 	}
 
 	return result, nil

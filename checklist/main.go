@@ -8,6 +8,7 @@ import (
 	"checklist/file"
 	"checklist/filechecksum"
 	"checklist/firewall"
+	"checklist/logconfig"
 	"checklist/passwordpolicy"
 	"checklist/patching"
 	"checklist/port"
@@ -68,6 +69,7 @@ func runChecklist(cmd *cobra.Command, args []string) {
 	case "1099", "11099", "3100", "5100", "2100", "299", "9", "4035":
 		result, err = firewall.GetRules()
 	case "1100", "11100", "3101", "5101", "2101", "300", "10", "4036":
+		result, err = logconfig.GetLogConfig()
 	default:
 		fmt.Fprintf(os.Stderr, "Error: invalid id: %s\n", id)
 		os.Exit(1)

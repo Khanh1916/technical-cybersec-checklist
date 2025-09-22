@@ -31,7 +31,7 @@ func GetRules() (string, error) {
 			if err != nil {
 				continue
 			}
-			result += fmt.Sprintf("%s\n%s\n", table, rule)
+			result += fmt.Sprintf("****%s****\n%s\n", table, rule)
 		}
 		result += "\n"
 	}

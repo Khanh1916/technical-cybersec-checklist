@@ -53,7 +53,7 @@ func getAccountsLinux() ([]string, error) {
 }
 
 func getAccountsWindows() ([]string, error) {
-	cmd := exec.Command("net", "user")
+	cmd := exec.Command("powershell", "-Command", "Get-LocalUser | Select-Object -ExpandProperty Name")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
@@ -63,29 +63,10 @@ func getAccountsWindows() ([]string, error) {
 
 	lines := strings.Split(out.String(), "\n")
 	var users []string
-	parsing := false
-
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		// Bắt đầu parse sau dòng chứa dấu ---
-		if strings.HasPrefix(line, "-----") {
-			parsing = true
-			continue
-		}
-
-		// Dừng khi gặp dòng thông báo hoàn thành
-		if strings.Contains(line, "The command completed successfully.") {
-			break
-		}
-
-		if parsing {
-			// Tách từng user trong dòng (tách bằng khoảng trắng)
-			fields := strings.Fields(line)
-			users = append(users, fields...)
+		name := strings.TrimSpace(line)
+		if name != "" {
+			users = append(users, name)
 		}
 	}
 
