@@ -1,5 +1,5 @@
-#!/bin/bash:
-utput=$(grep "^LogLevel" /etc/ssh/sshd_config)
+#!/bin/bash
+output=$(grep "^LogLevel" /etc/ssh/sshd_config)
 echo "$output"
 
 if echo "$output" | grep -qE "^LogLevel (INFO|VERBOSE)$"; then

@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 output=$(rpm -q prelink 2>&1)
 
 echo "$output"
